@@ -46,6 +46,7 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
   const directory = path.resolve(env.TEMP_DIR || "/tmp/vodx");
   const ytdlp = env.YTDLP_PATH || "yt-dlp";
   const ffmpeg = env.FFMPEG_PATH || "ffmpeg";
+  const retentionMs = Math.max(60_000, Number(env.FILE_RETENTION_MS) || RETENTION_MS);
   const files = new Map();
   const jobs = new Map();
   let active = false;
@@ -63,7 +64,7 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
       for (const name of names) {
         if (!/^vodx-[0-9a-f-]{36}\.[a-z0-9]{1,8}(\.part)?$/i.test(name)) continue;
         const full = path.join(directory, name);
-        try { if (current - (await stat(full)).mtimeMs > RETENTION_MS) await unlink(full); } catch {}
+        try { if (current - (await stat(full)).mtimeMs > retentionMs) await unlink(full); } catch {}
       }
     } catch {}
   }
@@ -106,7 +107,7 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
         for (const name of candidates) try { await unlink(path.join(directory, name)); } catch {}
         const error = new Error("No se encontró un archivo válido o supera el límite de 900 MB."); error.status = 413; throw error;
       }
-      const record = { id, path: path.join(directory, result.name), filename: result.name, size: result.info.size, expiresAt: now() + RETENTION_MS };
+      const record = { id, path: path.join(directory, result.name), filename: result.name, size: result.info.size, expiresAt: now() + retentionMs };
       files.set(id, record);
       return { id, filename: record.filename, size: record.size, expiresAt: record.expiresAt, downloadUrl: `/api/download/file?id=${id}` };
     } catch (error) {
