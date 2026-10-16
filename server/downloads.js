@@ -59,7 +59,7 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
     try {
       const names = await readdir(directory);
       for (const name of names) {
-        if (!/^vodx-[0-9a-f-]{36}\.[a-z0-9]{1,8}$/i.test(name)) continue;
+        if (!/^vodx-[0-9a-f-]{36}\.[a-z0-9]{1,8}(\.part)?$/i.test(name)) continue;
         const full = path.join(directory, name);
         try { if (current - (await stat(full)).mtimeMs > RETENTION_MS) await unlink(full); } catch {}
       }
@@ -108,6 +108,10 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
       files.set(id, record);
       return { id, filename: record.filename, size: record.size, expiresAt: record.expiresAt, downloadUrl: `/api/download/file?id=${id}` };
     } catch (error) {
+      try {
+        const names = await readdir(directory);
+        for (const name of names) if (name.startsWith(`vodx-${id}.`)) try { await unlink(path.join(directory, name)); } catch {}
+      } catch {}
       if (error.code === "ENOENT") {
         const unavailable = new Error("No se encontró yt-dlp o ffmpeg en el servidor. Instala ambas herramientas y revisa YTDLP_PATH/FFMPEG_PATH.");
         unavailable.status = 503; throw unavailable;
