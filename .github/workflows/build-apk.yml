@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - 'www/**'
-      - 'src/**'
+      - 'tests/**'
       - 'package.json'
       - 'capacitor.config.json'
       - '.github/workflows/build-apk.yml'

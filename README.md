@@ -43,7 +43,7 @@ En GitHub, el workflow **Build Android APK** genera el artefacto `vodx-debug-apk
 ## Arquitectura
 
 - `www/`: interfaz HTML, CSS y JavaScript.
-- `src/core.js`: validaciones y funciones puras.
+- `www/core.js`: validaciones y funciones puras.
 - `tests/`: pruebas unitarias.
 - `.github/workflows/`: validación y compilación Android.
 
