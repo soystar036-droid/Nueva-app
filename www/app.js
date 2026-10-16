@@ -1,4 +1,4 @@
-import { validateKickVodUrl, validateTimeRange, normalizeChannelName, formatPeriod } from "../src/core.js";
+import { validateKickVodUrl, validateTimeRange, normalizeChannelName, formatPeriod } from "./core.js";
 const $=s=>document.querySelector(s);
 const vodStatus=$("#vod-status"), timeFields=$("#time-fields");
 const rangeInputs=[...document.querySelectorAll('input[name="rangeMode"]')];
