@@ -24,18 +24,30 @@ $("#vod-form").addEventListener("submit",async event=>{
  const submit=event.currentTarget.querySelector('button[type="submit"]');
  const existing=$("#download-result-link");if(existing)existing.remove();
  submit.disabled=true;
- setStatus(vodStatus,"Solicitud enviada. La descarga puede tardar; mantén esta página abierta. No hay barra de progreso todavía.");
+ setStatus(vodStatus,"Preparando la tarea de descarga…");
  try{
-  const response=await fetch("/api/download",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(95*60*1000)});
+  const response=await fetch("/api/download",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});
   const body=await response.json();
-  if(!response.ok)throw new Error(body.error||"No se pudo descargar el VOD.");
-  const file=body.data;
+  if(!response.ok)throw new Error(body.error||"No se pudo iniciar la descarga.");
+  const jobId=body.data.id,deadline=Date.now()+95*60*1000;
+  let file=null;
+  while(Date.now()<deadline){
+   await new Promise(resolve=>setTimeout(resolve,2500));
+   const statusResponse=await fetch("/api/download/status?id="+encodeURIComponent(jobId),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+   const statusBody=await statusResponse.json();
+   if(!statusResponse.ok)throw new Error(statusBody.error||"No se pudo consultar la tarea.");
+   const job=statusBody.data;
+   if(job.status==="completed"){file=job.result;break}
+   if(job.status==="failed")throw new Error(job.error?.message||"La descarga falló.");
+   setStatus(vodStatus,job.status==="queued"?"Descarga en cola…":"Descargando el VOD en el servidor. Puedes dejar esta pantalla abierta; aún no hay porcentaje de progreso.");
+  }
+  if(!file)throw new Error("La tarea tardó demasiado. Comprueba el estado del servidor e inténtalo de nuevo.");
   const link=document.createElement("a");link.id="download-result-link";link.href=file.downloadUrl;link.textContent="Guardar archivo descargado";link.className="download-result-link";
   vodStatus.insertAdjacentElement("afterend",link);
   const size=(file.size/1024/1024).toLocaleString("es-MX",{maximumFractionDigits:1});
   setStatus(vodStatus,"Descarga terminada ("+size+" MB). El archivo se elimina automáticamente después de 6 horas.","success");
  }catch(error){
-  const message=error?.name==="TimeoutError"?"La descarga tardó demasiado y la solicitud se agotó.":error?.message||"No se pudo conectar con el servidor.";
+  const message=error?.name==="TimeoutError"?"Se agotó el tiempo de espera al contactar con el servidor.":error?.message||"No se pudo conectar con el servidor.";
   setStatus(vodStatus,message,"error");
  }finally{submit.disabled=false}
 });
