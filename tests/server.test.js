@@ -85,3 +85,19 @@ test("la API inicia una tarea asíncrona y permite consultar su estado", async t
   assert.equal(status.status, 200);
   assert.equal((await status.json()).data.status, "processing");
 });
+
+
+test("permite CORS solo para orígenes configurados y Capacitor", async t => {
+  const server = createAppServer({ env: { APP_ORIGIN: "https://mi-web.example" } });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = "http://127.0.0.1:" + server.address().port;
+  const allowed = await fetch(base + "/api/health", { headers: { Origin: "https://localhost" } });
+  assert.equal(allowed.headers.get("access-control-allow-origin"), "https://localhost");
+  const configured = await fetch(base + "/api/health", { headers: { Origin: "https://mi-web.example" } });
+  assert.equal(configured.headers.get("access-control-allow-origin"), "https://mi-web.example");
+  const denied = await fetch(base + "/api/health", { headers: { Origin: "https://evil.example" } });
+  assert.equal(denied.headers.get("access-control-allow-origin"), null);
+  const preflight = await fetch(base + "/api/download", { method: "OPTIONS", headers: { Origin: "https://evil.example", "Access-Control-Request-Method": "POST" } });
+  assert.equal(preflight.status, 403);
+});
