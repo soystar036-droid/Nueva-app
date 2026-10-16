@@ -13,7 +13,7 @@ Implementado:
 - Métricas no disponibles identificadas explícitamente; no se fabrican datos.
 - Pruebas unitarias con Node.js.
 - Backend Node.js con endpoint de salud y consulta de canal mediante la API pública oficial de Kick.
-- Endpoint de descarga con validación estricta del enlace, límite de tamaño, timeout, una descarga simultánea y limpieza de temporales.
+- Endpoint de descarga con validación estricta del enlace, límite de tamaño, timeout, una descarga simultánea, tareas en segundo plano, consulta de estado y limpieza de temporales.
 - Descarga completa o fragmento de hasta 30 minutos mediante yt-dlp + ffmpeg, cuando se habilita explícitamente en el servidor.
 - Cache de token OAuth de aplicación en memoria y credenciales solo del lado del servidor.
 - Workflow de validación y workflow para construir un APK de depuración con Capacitor.
@@ -47,7 +47,7 @@ En GitHub, el workflow **Build Android APK** genera el artefacto `vodx-debug-apk
 
 ## Configuración del backend
 
-Crea una aplicación en [Kick Developer](https://dev.kick.com) y configura `KICK_CLIENT_ID` y `KICK_CLIENT_SECRET` como variables de entorno del servidor. No subas credenciales reales al repositorio. El backend expone `GET /api/health` y `GET /api/kick/channel?slug=usuario`.
+Crea una aplicación en [Kick Developer](https://dev.kick.com) y configura `KICK_CLIENT_ID` y `KICK_CLIENT_SECRET` como variables de entorno del servidor. No subas credenciales reales al repositorio. El backend expone `GET /api/health`, `GET /api/kick/channel?slug=usuario`, `POST /api/download` y `GET /api/download/status?id=...`.
 
 Para Railway, usa `npm start`; el healthcheck está configurado en `/api/health`. La interfaz y la API deben servirse desde el mismo origen. `nixpacks.toml` añade yt-dlp y ffmpeg si el servicio realmente usa Nixpacks.
 
