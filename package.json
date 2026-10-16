@@ -1,0 +1,21 @@
+{
+  "name": "vodx-kick-wrapped",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check www/app.js && node --check src/core.js",
+    "build": "npm run check && npm test"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

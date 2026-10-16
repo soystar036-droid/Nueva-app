@@ -1,0 +1,6 @@
+{
+  "appId": "com.vodx.app",
+  "appName": "VODX",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
