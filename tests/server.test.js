@@ -34,3 +34,30 @@ test("consulta un canal usando el token OAuth de aplicación", async () => {
   assert.match(calls[1].url, /slug=soypan/);
   assert.equal(calls[1].options.headers.Authorization, "Bearer mock-token");
 });
+
+
+test("endpoint de descarga informa cuando la función está desactivada", async t => {
+  const server = createAppServer({ env: { VODX_ENABLE_DOWNLOADS: "false" } });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const response = await fetch("http://127.0.0.1:" + server.address().port + "/api/download", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://kick.com/soypan/videos/abc123" })
+  });
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).error, /VODX_ENABLE_DOWNLOADS/);
+});
+
+test("endpoint de descarga rechaza hosts externos", async t => {
+  const server = createAppServer({ env: { VODX_ENABLE_DOWNLOADS: "true" } });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const response = await fetch("http://127.0.0.1:" + server.address().port + "/api/download", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://example.com/video" })
+  });
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /kick.com/);
+});
