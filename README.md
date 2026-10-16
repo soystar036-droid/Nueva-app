@@ -49,9 +49,9 @@ En GitHub, el workflow **Build Android APK** genera el artefacto `vodx-debug-apk
 
 Crea una aplicación en [Kick Developer](https://dev.kick.com) y configura `KICK_CLIENT_ID` y `KICK_CLIENT_SECRET` como variables de entorno del servidor. No subas credenciales reales al repositorio. El backend expone `GET /api/health`, `GET /api/kick/channel?slug=usuario`, `POST /api/download` y `GET /api/download/status?id=...`.
 
-Para Railway, usa `npm start`; el healthcheck está configurado en `/api/health`. La interfaz y la API deben servirse desde el mismo origen. `nixpacks.toml` añade yt-dlp y ffmpeg si el servicio realmente usa Nixpacks.
+Para Railway, usa `npm start`; el healthcheck está configurado en `/api/health`. En la web puedes usar el mismo dominio; en Android abre **Conexión del servidor** dentro de la app y guarda la URL HTTPS pública de Railway. El backend permite CORS para el origen local de Capacitor y para los dominios indicados en `APP_ORIGIN` (separados por coma). `nixpacks.toml` añade yt-dlp y ffmpeg si el servicio realmente usa Nixpacks.
 
-La descarga está **desactivada por defecto** para evitar que un endpoint público consuma almacenamiento o CPU sin control. Después de comprobar que las herramientas están disponibles y que tienes un límite de recursos adecuado, activa `VODX_ENABLE_DOWNLOADS=true` en las variables del servicio. Opcionalmente define `YTDLP_PATH`, `FFMPEG_PATH` y `TEMP_DIR`. El límite de archivo es 900 MB; los temporales se limpian al expirar (6 horas). El beta admite una descarga simultánea, hasta 3 descargas completadas cada 10 minutos y fragmentos de hasta 30 minutos. El servidor no elude VODs privados ni controles de acceso.
+La descarga está **desactivada por defecto** para evitar que un endpoint público consuma almacenamiento o CPU sin control. Después de comprobar que las herramientas están disponibles y que tienes un límite de recursos adecuado, activa `VODX_ENABLE_DOWNLOADS=true` en las variables del servicio. Opcionalmente define `YTDLP_PATH`, `FFMPEG_PATH`, `TEMP_DIR` y `FILE_RETENTION_MS` (por defecto seis horas). El límite de archivo es 900 MB; los temporales se limpian al expirar (6 horas). El beta admite una descarga simultánea, hasta 3 descargas completadas cada 10 minutos y fragmentos de hasta 30 minutos. El servidor no elude VODs privados ni controles de acceso.
 
 ## Arquitectura
 
