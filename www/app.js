@@ -3,6 +3,21 @@ const $=s=>document.querySelector(s);
 const vodStatus=$("#vod-status"), timeFields=$("#time-fields");
 const rangeInputs=[...document.querySelectorAll('input[name="rangeMode"]')];
 function setStatus(el,msg,kind=""){el.textContent=msg;el.className="status"+(kind?" "+kind:"")}
+const apiInput=$("#api-base-url"),apiStatus=$("#api-url-status");
+function getApiBase(){try{return localStorage.getItem("vodx-api-base")||""}catch{return ""}}
+function apiUrl(path){const base=getApiBase();return base?base+path:path}
+if(apiInput)apiInput.value=getApiBase();
+$("#save-api-url")?.addEventListener("click",()=>{
+ const raw=apiInput.value.trim().replace(/\/+$/,"");
+ if(!raw){try{localStorage.removeItem("vodx-api-base")}catch{};setStatus(apiStatus,"Se usará el mismo dominio. En Android debes configurar la URL HTTPS del backend.","success");return}
+ let parsed;try{parsed=new URL(raw)}catch{return setStatus(apiStatus,"Escribe una URL válida, por ejemplo https://tu-app.up.railway.app","error")}
+ const localHost=["localhost","127.0.0.1"].includes(parsed.hostname);
+ if((parsed.protocol!=="https:"&&!localHost)||parsed.username||parsed.password||parsed.search||parsed.hash||parsed.pathname!=="/")return setStatus(apiStatus,"Usa una URL HTTPS de backend sin rutas, parámetros ni credenciales.","error");
+ const normalized=parsed.origin;
+ try{localStorage.setItem("vodx-api-base",normalized)}catch{return setStatus(apiStatus,"No se pudo guardar la configuración en este dispositivo.","error")}
+ apiInput.value=normalized;setStatus(apiStatus,"URL guardada. Comprobando el servidor…");
+ fetch(apiUrl("/api/health"),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(10000)}).then(async response=>{const data=await response.json();if(!response.ok||!data.ok)throw new Error("El servidor no respondió correctamente.");setStatus(apiStatus,"Conectado al backend. "+(data.kickConfigured?"Credenciales de Kick configuradas.":"Faltan credenciales de Kick en el servidor."),"success")}).catch(()=>setStatus(apiStatus,"URL guardada, pero no se pudo verificar el servidor. Comprueba la dirección y que esté desplegado.","error"));
+});
 document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{
  const view=tab.dataset.view;
  document.querySelectorAll(".tab").forEach(item=>{const active=item===tab;item.classList.toggle("active",active);item.setAttribute("aria-selected",String(active))});
@@ -26,14 +41,14 @@ $("#vod-form").addEventListener("submit",async event=>{
  submit.disabled=true;
  setStatus(vodStatus,"Preparando la tarea de descarga…");
  try{
-  const response=await fetch("/api/download",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});
+  const response=await fetch(apiUrl("/api/download",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});
   const body=await response.json();
   if(!response.ok)throw new Error(body.error||"No se pudo iniciar la descarga.");
   const jobId=body.data.id,deadline=Date.now()+95*60*1000;
   let file=null;
   while(Date.now()<deadline){
    await new Promise(resolve=>setTimeout(resolve,2500));
-   const statusResponse=await fetch("/api/download/status?id="+encodeURIComponent(jobId),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+   const statusResponse=await fetch(apiUrl("/api/download/status?id="+encodeURIComponent(jobId),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
    const statusBody=await statusResponse.json();
    if(!statusResponse.ok)throw new Error(statusBody.error||"No se pudo consultar la tarea.");
    const job=statusBody.data;
@@ -60,7 +75,7 @@ $("#wrapped-form").addEventListener("submit",async event=>{
  $("#card-channel").textContent="@"+channel.name;$("#card-period").textContent=period;$("#channel-info").hidden=true;
  setStatus(wrappedStatus,"Vista previa creada. Consultando los datos públicos del canal…");
  try{
-  const response=await fetch("/api/kick/channel?slug="+encodeURIComponent(channel.name),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+  const response=await fetch(apiUrl("/api/kick/channel?slug="+encodeURIComponent(channel.name),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
   const result=await response.json();if(!response.ok)throw new Error(result.error||"No se pudieron consultar los datos del canal.");
   const data=result.data;$("#channel-display").textContent=data.name||("@"+channel.name);
   const details=[data.category,data.streamTitle].filter(Boolean);if(data.followers!==null&&data.followers!==undefined)details.push(Number(data.followers).toLocaleString("es-MX")+" seguidores");
