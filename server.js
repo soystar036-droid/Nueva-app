@@ -8,8 +8,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.join(ROOT, "www");
 const PORT = Number(process.env.PORT || 3000);
-const downloads = createDownloadService();
-const downloadStarts = [];
+
 const MIME = { ".html":"text/html; charset=utf-8", ".css":"text/css; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".json":"application/json; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png" };
 
 export function normalizeSlug(input) {
@@ -91,8 +90,10 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-export function createAppServer({ env = process.env, fetchImpl = fetch, webRoot = WEB_ROOT } = {}) {
+export function createAppServer({ env = process.env, fetchImpl = fetch, webRoot = WEB_ROOT, downloadService } = {}) {
   const kick = createKickClient({ env, fetchImpl });
+  const downloads = downloadService || createDownloadService({ env });
+  const downloadStarts = [];
   return http.createServer(async (req, res) => {
     const requestUrl = new URL(req.url || "/", "http://localhost");
     if (req.method === "GET" && requestUrl.pathname === "/api/health") {
