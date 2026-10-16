@@ -47,6 +47,7 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
   const ytdlp = env.YTDLP_PATH || "yt-dlp";
   const ffmpeg = env.FFMPEG_PATH || "ffmpeg";
   const files = new Map();
+  const jobs = new Map();
   let active = false;
 
   async function cleanup() {
@@ -56,6 +57,7 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
       files.delete(id);
       try { await unlink(record.path); } catch {}
     }
+    for (const [id, job] of jobs) if (job.expiresAt <= current) jobs.delete(id);
     try {
       const names = await readdir(directory);
       for (const name of names) {
@@ -123,6 +125,45 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
     }
   }
 
+  function startDownload(args) {
+    if (env.VODX_ENABLE_DOWNLOADS !== "true") {
+      const error = new Error("La descarga real está desactivada. Activa VODX_ENABLE_DOWNLOADS=true después de instalar yt-dlp y ffmpeg en el servidor.");
+      error.status = 503; throw error;
+    }
+    if (!validateVodDownloadUrl(args?.url)) {
+      const error = new Error("El enlace debe ser un VOD público de kick.com con formato válido."); error.status = 400; throw error;
+    }
+    if (args?.startSeconds !== undefined || args?.endSeconds !== undefined) {
+      if (!validateClipRange(args.startSeconds, args.endSeconds)) {
+        const error = new Error("El fragmento debe durar entre 1 segundo y 30 minutos, con tiempos válidos."); error.status = 400; throw error;
+      }
+    }
+    if (active) { const error = new Error("Ya hay una descarga en curso. Inténtalo cuando termine."); error.status = 429; throw error; }
+    const id = randomUUID();
+    const job = { id, status: "queued", createdAt: now(), expiresAt: now() + RETENTION_MS, result: null, error: null };
+    jobs.set(id, job);
+    Promise.resolve().then(async () => {
+      job.status = "processing";
+      try {
+        job.result = await download(args);
+        job.status = "completed";
+      } catch (error) {
+        job.status = "failed";
+        job.error = { status: Number(error.status) || 502, message: error.message || "La descarga falló." };
+      }
+      job.updatedAt = now();
+    });
+    return { id, status: job.status, statusUrl: `/api/download/status?id=${id}` };
+  }
+
+  async function getJob(id) {
+    await cleanup();
+    if (!/^[0-9a-f-]{36}$/i.test(String(id ?? ""))) return null;
+    const job = jobs.get(id);
+    if (!job || job.expiresAt <= now()) { jobs.delete(id); return null; }
+    return { id: job.id, status: job.status, result: job.result, error: job.error, updatedAt: job.updatedAt ?? job.createdAt };
+  }
+
   async function getFile(id) {
     await cleanup();
     if (!/^[0-9a-f-]{36}$/i.test(String(id ?? ""))) return null;
@@ -131,5 +172,5 @@ export function createDownloadService({ env = process.env, spawnImpl = spawn, no
     return record;
   }
 
-  return { download, getFile, cleanup };
+  return { download, startDownload, getJob, getFile, cleanup };
 }
