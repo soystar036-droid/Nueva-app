@@ -61,3 +61,27 @@ test("endpoint de descarga rechaza hosts externos", async t => {
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /kick.com/);
 });
+
+
+test("la API inicia una tarea asíncrona y permite consultar su estado", async t => {
+  const id = "123e4567-e89b-12d3-a456-426614174000";
+  const downloadService = {
+    startDownload: () => ({ id, status: "queued", statusUrl: "/api/download/status?id=" + id }),
+    getJob: async requestedId => requestedId === id ? { id, status: "processing", result: null, error: null } : null,
+    getFile: async () => null
+  };
+  const server = createAppServer({ env: {}, downloadService });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = "http://127.0.0.1:" + server.address().port;
+  const started = await fetch(base + "/api/download", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://kick.com/soypan/videos/abc123" })
+  });
+  assert.equal(started.status, 202);
+  assert.equal((await started.json()).data.id, id);
+  const status = await fetch(base + "/api/download/status?id=" + id);
+  assert.equal(status.status, 200);
+  assert.equal((await status.json()).data.status, "processing");
+});
