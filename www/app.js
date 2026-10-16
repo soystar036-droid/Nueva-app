@@ -19,12 +19,22 @@ $("#vod-form").addEventListener("submit",event=>{
 });
 const periodType=$("#period-type"),periodValue=$("#period-value"),wrappedStatus=$("#wrapped-status");
 periodType.addEventListener("change",()=>{periodValue.type=periodType.value==="year"?"number":"month";if(periodType.value==="year"){periodValue.min="2000";periodValue.max="2100";periodValue.value="2026";periodValue.placeholder="2026"}else{periodValue.removeAttribute("min");periodValue.removeAttribute("max");periodValue.value="2026-10";periodValue.placeholder=""}});
-$("#wrapped-form").addEventListener("submit",event=>{
+$("#wrapped-form").addEventListener("submit",async event=>{
  event.preventDefault();const channel=normalizeChannelName($("#channel-name").value);
  if(!channel.valid)return setStatus(wrappedStatus,channel.reason,"error");
  const period=formatPeriod(periodValue.value,periodType.value);if(period==="PERIODO")return setStatus(wrappedStatus,"Selecciona un periodo válido.","error");
- $("#card-channel").textContent="@"+channel.name;$("#card-period").textContent=period;
- setStatus(wrappedStatus,"Vista previa actualizada. Las métricas siguen como no disponibles hasta conectar una fuente verificable.","success");
+ $("#card-channel").textContent="@"+channel.name;$("#card-period").textContent=period;$("#channel-info").hidden=true;
+ setStatus(wrappedStatus,"Vista previa creada. Consultando los datos públicos del canal…");
+ try{
+  const response=await fetch("/api/kick/channel?slug="+encodeURIComponent(channel.name),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||"No se pudieron consultar los datos del canal.");
+  const data=result.data;$("#channel-display").textContent=data.name||("@"+channel.name);
+  const details=[data.category,data.streamTitle].filter(Boolean);if(data.followers!==null&&data.followers!==undefined)details.push(Number(data.followers).toLocaleString("es-MX")+" seguidores");
+  $("#channel-detail").textContent=details.join(" · ")||"Canal localizado en Kick.";
+  const avatar=$("#channel-avatar");try{const imageUrl=new URL(data.profilePicture);if(imageUrl.protocol==="https:"){avatar.src=imageUrl.href;avatar.hidden=false}else avatar.hidden=true}catch{avatar.hidden=true}
+  const live=$("#channel-live");live.textContent=data.isLive?"EN VIVO":"FUERA DE LÍNEA";live.classList.toggle("live",Boolean(data.isLive));$("#channel-info").hidden=false;
+  setStatus(wrappedStatus,"Canal consultado en Kick. Las métricas históricas del periodo siguen pendientes de una fuente que las proporcione.","success");
+ }catch(error){const reason=error?.name==="TimeoutError"?"La consulta tardó demasiado.":error?.message||"No se pudo conectar con el servidor.";setStatus(wrappedStatus,reason+" La vista previa sigue disponible; verifica que el backend esté desplegado y configurado.","error")}
 });
 function drawCard(){
  const width=1080,height=1350,canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;
