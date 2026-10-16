@@ -5,3 +5,10 @@
 .download-result-link{display:block;margin-top:12px;padding:14px 16px;border:1px solid #b5ef8b;border-radius:12px;background:#eaffd8;color:#17200f;font-weight:700;text-align:center;text-decoration:none}
 .download-result-link:focus-visible{outline:3px solid #a2ed68;outline-offset:3px}
 button:disabled{opacity:.6;cursor:wait}
+
+
+.server-settings{margin:0 0 18px;border:1px solid #34343d;border-radius:14px;background:#18181f;padding:0 16px}
+.server-settings summary{padding:15px 0;font-weight:700;cursor:pointer}
+.server-settings-body{display:grid;gap:10px;padding:0 0 14px}
+.server-settings-body .secondary-button{width:100%}
+.server-settings .status{margin:0}
