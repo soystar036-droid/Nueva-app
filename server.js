@@ -1,11 +1,15 @@
 import http from "node:http";
+import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
+import { createDownloadService } from "./server/downloads.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.join(ROOT, "www");
 const PORT = Number(process.env.PORT || 3000);
+const downloads = createDownloadService();
+const downloadStarts = [];
 const MIME = { ".html":"text/html; charset=utf-8", ".css":"text/css; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".json":"application/json; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png" };
 
 export function normalizeSlug(input) {
@@ -70,6 +74,18 @@ export function createKickClient({ env = process.env, fetchImpl = fetch, now = (
   return { getChannel };
 }
 
+async function readJsonBody(req, maxBytes = 16 * 1024) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > maxBytes) { const error = new Error("La solicitud es demasiado grande."); error.status = 413; throw error; }
+    chunks.push(chunk);
+  }
+  try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); }
+  catch { const error = new Error("El cuerpo debe ser JSON válido."); error.status = 400; throw error; }
+}
+
 function sendJson(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
   res.end(JSON.stringify(body));
@@ -81,6 +97,39 @@ export function createAppServer({ env = process.env, fetchImpl = fetch, webRoot 
     const requestUrl = new URL(req.url || "/", "http://localhost");
     if (req.method === "GET" && requestUrl.pathname === "/api/health") {
       return sendJson(res, 200, { ok: true, service: "vodx-kick-wrapped", kickConfigured: Boolean(env.KICK_CLIENT_ID && env.KICK_CLIENT_SECRET) });
+    }
+    if (req.method === "POST" && requestUrl.pathname === "/api/download") {
+      try {
+        const body = await readJsonBody(req);
+        const now = Date.now();
+        while (downloadStarts.length && now - downloadStarts[0] > 10 * 60 * 1000) downloadStarts.shift();
+        if (downloadStarts.length >= 3) return sendJson(res, 429, { error: "Límite beta: máximo 3 descargas cada 10 minutos por servidor." });
+        const result = await downloads.download({
+          url: body.url,
+          ...(body.startSeconds !== undefined || body.endSeconds !== undefined
+            ? { startSeconds: body.startSeconds, endSeconds: body.endSeconds }
+            : {})
+        });
+        downloadStarts.push(now);
+        return sendJson(res, 200, { data: result });
+      } catch (error) {
+        return sendJson(res, Number(error.status) || 502, { error: error.message || "No se pudo descargar el VOD." });
+      }
+    }
+    if (req.method === "GET" && requestUrl.pathname === "/api/download/file") {
+      const record = await downloads.getFile(requestUrl.searchParams.get("id"));
+      if (!record) return sendJson(res, 404, { error: "El archivo no existe o expiró. Vuelve a iniciar la descarga." });
+      res.writeHead(200, {
+        "Content-Type": "video/mp4",
+        "Content-Length": record.size,
+        "Content-Disposition": 'attachment; filename="' + record.filename.replace(/[^a-zA-Z0-9._-]/g, "_") + '"',
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff"
+      });
+      const stream = createReadStream(record.path);
+      stream.on("error", () => { if (!res.headersSent) sendJson(res, 404, { error: "El archivo ya no está disponible." }); else res.destroy(); });
+      stream.pipe(res);
+      return;
     }
     if (req.method === "GET" && requestUrl.pathname === "/api/kick/channel") {
       const slug = normalizeSlug(requestUrl.searchParams.get("slug"));
