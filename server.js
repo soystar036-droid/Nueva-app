@@ -105,17 +105,22 @@ export function createAppServer({ env = process.env, fetchImpl = fetch, webRoot 
         const now = Date.now();
         while (downloadStarts.length && now - downloadStarts[0] > 10 * 60 * 1000) downloadStarts.shift();
         if (downloadStarts.length >= 3) return sendJson(res, 429, { error: "Límite beta: máximo 3 descargas cada 10 minutos por servidor." });
-        const result = await downloads.download({
+        const result = downloads.startDownload({
           url: body.url,
           ...(body.startSeconds !== undefined || body.endSeconds !== undefined
             ? { startSeconds: body.startSeconds, endSeconds: body.endSeconds }
             : {})
         });
         downloadStarts.push(now);
-        return sendJson(res, 200, { data: result });
+        return sendJson(res, 202, { data: result });
       } catch (error) {
         return sendJson(res, Number(error.status) || 502, { error: error.message || "No se pudo descargar el VOD." });
       }
+    }
+    if (req.method === "GET" && requestUrl.pathname === "/api/download/status") {
+      const job = await downloads.getJob(requestUrl.searchParams.get("id"));
+      if (!job) return sendJson(res, 404, { error: "La tarea no existe o expiró." });
+      return sendJson(res, 200, { data: job });
     }
     if (req.method === "GET" && requestUrl.pathname === "/api/download/file") {
       const record = await downloads.getFile(requestUrl.searchParams.get("id"));
