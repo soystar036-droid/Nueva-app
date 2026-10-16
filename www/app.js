@@ -9,13 +9,35 @@ document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>
  $("#downloader-view").hidden=view!=="downloader";$("#wrapped-view").hidden=view!=="wrapped";
 }));
 rangeInputs.forEach(input=>input.addEventListener("change",()=>{timeFields.hidden=input.value!=="clip"||!input.checked}));
-$("#vod-form").addEventListener("submit",event=>{
- event.preventDefault();const result=validateKickVodUrl($("#vod-url").value);
+$("#vod-form").addEventListener("submit",async event=>{
+ event.preventDefault();
+ const result=validateKickVodUrl($("#vod-url").value);
  if(!result.valid)return setStatus(vodStatus,result.reason,"error");
  const mode=rangeInputs.find(input=>input.checked)?.value||"full";
- if(mode==="clip"){const range=validateTimeRange($("#start-time").value,$("#end-time").value);if(!range.valid)return setStatus(vodStatus,range.reason,"error");
- return setStatus(vodStatus,"Enlace válido y fragmento de "+Math.floor(range.durationSeconds/60)+" min "+(range.durationSeconds%60)+" s preparado. Aún no se descargó ningún archivo.","success")}
- setStatus(vodStatus,"Enlace con formato válido. La fuente de Kick todavía no está conectada; no se inició ninguna descarga.","success");
+ const payload={url:result.normalizedUrl};
+ if(mode==="clip"){
+  const range=validateTimeRange($("#start-time").value,$("#end-time").value);
+  if(!range.valid)return setStatus(vodStatus,range.reason,"error");
+  if(range.durationSeconds>1800)return setStatus(vodStatus,"Los fragmentos están limitados a 30 minutos.","error");
+  payload.startSeconds=range.startSeconds;payload.endSeconds=range.endSeconds;
+ }
+ const submit=event.currentTarget.querySelector('button[type="submit"]');
+ const existing=$("#download-result-link");if(existing)existing.remove();
+ submit.disabled=true;
+ setStatus(vodStatus,"Solicitud enviada. La descarga puede tardar; mantén esta página abierta. No hay barra de progreso todavía.");
+ try{
+  const response=await fetch("/api/download",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(95*60*1000)});
+  const body=await response.json();
+  if(!response.ok)throw new Error(body.error||"No se pudo descargar el VOD.");
+  const file=body.data;
+  const link=document.createElement("a");link.id="download-result-link";link.href=file.downloadUrl;link.textContent="Guardar archivo descargado";link.className="download-result-link";
+  vodStatus.insertAdjacentElement("afterend",link);
+  const size=(file.size/1024/1024).toLocaleString("es-MX",{maximumFractionDigits:1});
+  setStatus(vodStatus,"Descarga terminada ("+size+" MB). El archivo se elimina automáticamente después de 6 horas.","success");
+ }catch(error){
+  const message=error?.name==="TimeoutError"?"La descarga tardó demasiado y la solicitud se agotó.":error?.message||"No se pudo conectar con el servidor.";
+  setStatus(vodStatus,message,"error");
+ }finally{submit.disabled=false}
 });
 const periodType=$("#period-type"),periodValue=$("#period-value"),wrappedStatus=$("#wrapped-status");
 periodType.addEventListener("change",()=>{periodValue.type=periodType.value==="year"?"number":"month";if(periodType.value==="year"){periodValue.min="2000";periodValue.max="2100";periodValue.value="2026";periodValue.placeholder="2026"}else{periodValue.removeAttribute("min");periodValue.removeAttribute("max");periodValue.value="2026-10";periodValue.placeholder=""}});
