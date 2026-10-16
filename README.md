@@ -13,11 +13,13 @@ Implementado:
 - Métricas no disponibles identificadas explícitamente; no se fabrican datos.
 - Pruebas unitarias con Node.js.
 - Backend Node.js con endpoint de salud y consulta de canal mediante la API pública oficial de Kick.
+- Endpoint de descarga con validación estricta del enlace, límite de tamaño, timeout, una descarga simultánea y limpieza de temporales.
+- Descarga completa o fragmento de hasta 30 minutos mediante yt-dlp + ffmpeg, cuando se habilita explícitamente en el servidor.
 - Cache de token OAuth de aplicación en memoria y credenciales solo del lado del servidor.
 - Workflow de validación y workflow para construir un APK de depuración con Capacitor.
 
 Aún no implementado:
-- Descarga real de VODs, selección de calidad, progreso, cancelación y guardado nativo.
+- Barra de progreso, cancelación de descarga y guardado nativo directo en Android.
 - Conexión a una fuente autorizada de Kick para estadísticas reales.
 - Datos de chat, emotes, cliperos y ranking de clips.
 - Pruebas en un dispositivo Android físico.
@@ -47,10 +49,14 @@ En GitHub, el workflow **Build Android APK** genera el artefacto `vodx-debug-apk
 
 Crea una aplicación en [Kick Developer](https://dev.kick.com) y configura `KICK_CLIENT_ID` y `KICK_CLIENT_SECRET` como variables de entorno del servidor. No subas credenciales reales al repositorio. El backend expone `GET /api/health` y `GET /api/kick/channel?slug=usuario`.
 
-Para Railway, usa `npm start`; el healthcheck está configurado en `/api/health`. La interfaz y la API deben servirse desde el mismo origen.
+Para Railway, usa `npm start`; el healthcheck está configurado en `/api/health`. La interfaz y la API deben servirse desde el mismo origen. `nixpacks.toml` añade yt-dlp y ffmpeg si el servicio realmente usa Nixpacks.
+
+La descarga está **desactivada por defecto** para evitar que un endpoint público consuma almacenamiento o CPU sin control. Después de comprobar que las herramientas están disponibles y que tienes un límite de recursos adecuado, activa `VODX_ENABLE_DOWNLOADS=true` en las variables del servicio. Opcionalmente define `YTDLP_PATH`, `FFMPEG_PATH` y `TEMP_DIR`. El límite de archivo es 900 MB; los temporales se limpian al expirar (6 horas). El beta admite una descarga simultánea, hasta 3 descargas completadas cada 10 minutos y fragmentos de hasta 30 minutos. El servidor no elude VODs privados ni controles de acceso.
 
 ## Arquitectura
 
+- `server/downloads.js`: servicio de descarga con límites y retención de archivos.
+- `nixpacks.toml`: herramientas yt-dlp y ffmpeg para despliegues que usen Nixpacks.
 - `www/`: interfaz HTML, CSS y JavaScript.
 - `www/core.js`: validaciones y funciones puras.
 - `tests/`: pruebas unitarias.
