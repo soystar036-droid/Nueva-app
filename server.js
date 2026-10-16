@@ -90,11 +90,32 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+function applyCors(req, res, env) {
+  const origin = req.headers.origin;
+  const allowed = new Set(["https://localhost", "capacitor://localhost"]);
+  for (const item of String(env.APP_ORIGIN || "").split(",")) {
+    const value = item.trim();
+    if (value) allowed.add(value);
+  }
+  if (origin && allowed.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+    res.setHeader("Access-Control-Max-Age", "600");
+  }
+}
+
 export function createAppServer({ env = process.env, fetchImpl = fetch, webRoot = WEB_ROOT, downloadService } = {}) {
   const kick = createKickClient({ env, fetchImpl });
   const downloads = downloadService || createDownloadService({ env });
   const downloadStarts = [];
   return http.createServer(async (req, res) => {
+    applyCors(req, res, env);
+    if (req.method === "OPTIONS") {
+      if (!res.hasHeader("Access-Control-Allow-Origin")) return sendJson(res, 403, { error: "Origen no permitido." });
+      res.writeHead(204); return res.end();
+    }
     const requestUrl = new URL(req.url || "/", "http://localhost");
     if (req.method === "GET" && requestUrl.pathname === "/api/health") {
       return sendJson(res, 200, { ok: true, service: "vodx-kick-wrapped", kickConfigured: Boolean(env.KICK_CLIENT_ID && env.KICK_CLIENT_SECRET) });
