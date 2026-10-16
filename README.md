@@ -12,7 +12,9 @@ Implementado:
 - Exportación de tarjeta PNG y opción de compartir cuando el dispositivo lo admite.
 - Métricas no disponibles identificadas explícitamente; no se fabrican datos.
 - Pruebas unitarias con Node.js.
-- Backend Node.js con endpoint de salud y consulta de canal mediante la API pública oficial de Kick.\n- Cache de token OAuth de aplicación en memoria y credenciales solo del lado del servidor.\n- Workflow de validación y workflow para construir un APK de depuración con Capacitor.
+- Backend Node.js con endpoint de salud y consulta de canal mediante la API pública oficial de Kick.
+- Cache de token OAuth de aplicación en memoria y credenciales solo del lado del servidor.
+- Workflow de validación y workflow para construir un APK de depuración con Capacitor.
 
 Aún no implementado:
 - Descarga real de VODs, selección de calidad, progreso, cancelación y guardado nativo.
@@ -41,7 +43,13 @@ cd android
 
 En GitHub, el workflow **Build Android APK** genera el artefacto `vodx-debug-apk`. Se ejecuta al cambiar archivos relevantes o manualmente desde Actions.
 
-## Configuración del backend\n\nCrea una aplicación en [Kick Developer](https://dev.kick.com) y configura `KICK_CLIENT_ID` y `KICK_CLIENT_SECRET` como variables de entorno del servidor. No subas credenciales reales al repositorio. El backend expone `GET /api/health` y `GET /api/kick/channel?slug=usuario`.\n\nPara Railway, usa `npm start`; el healthcheck está configurado en `/api/health`. La interfaz y la API deben servirse desde el mismo origen.\n\n## Arquitectura
+## Configuración del backend
+
+Crea una aplicación en [Kick Developer](https://dev.kick.com) y configura `KICK_CLIENT_ID` y `KICK_CLIENT_SECRET` como variables de entorno del servidor. No subas credenciales reales al repositorio. El backend expone `GET /api/health` y `GET /api/kick/channel?slug=usuario`.
+
+Para Railway, usa `npm start`; el healthcheck está configurado en `/api/health`. La interfaz y la API deben servirse desde el mismo origen.
+
+## Arquitectura
 
 - `www/`: interfaz HTML, CSS y JavaScript.
 - `www/core.js`: validaciones y funciones puras.
