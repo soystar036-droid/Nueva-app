@@ -41,14 +41,14 @@ $("#vod-form").addEventListener("submit",async event=>{
  submit.disabled=true;
  setStatus(vodStatus,"Preparando la tarea de descarga…");
  try{
-  const response=await fetch(apiUrl("/api/download",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});
+  const response=await fetch(apiUrl("/api/download"),{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});
   const body=await response.json();
   if(!response.ok)throw new Error(body.error||"No se pudo iniciar la descarga.");
   const jobId=body.data.id,deadline=Date.now()+95*60*1000;
   let file=null;
   while(Date.now()<deadline){
    await new Promise(resolve=>setTimeout(resolve,2500));
-   const statusResponse=await fetch(apiUrl("/api/download/status?id="+encodeURIComponent(jobId),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+   const statusResponse=await fetch(apiUrl("/api/download/status?id="+encodeURIComponent(jobId)),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
    const statusBody=await statusResponse.json();
    if(!statusResponse.ok)throw new Error(statusBody.error||"No se pudo consultar la tarea.");
    const job=statusBody.data;
@@ -75,7 +75,7 @@ $("#wrapped-form").addEventListener("submit",async event=>{
  $("#card-channel").textContent="@"+channel.name;$("#card-period").textContent=period;$("#channel-info").hidden=true;
  setStatus(wrappedStatus,"Vista previa creada. Consultando los datos públicos del canal…");
  try{
-  const response=await fetch(apiUrl("/api/kick/channel?slug="+encodeURIComponent(channel.name),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+  const response=await fetch(apiUrl("/api/kick/channel?slug="+encodeURIComponent(channel.name)),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
   const result=await response.json();if(!response.ok)throw new Error(result.error||"No se pudieron consultar los datos del canal.");
   const data=result.data;$("#channel-display").textContent=data.name||("@"+channel.name);
   const details=[data.category,data.streamTitle].filter(Boolean);if(data.followers!==null&&data.followers!==undefined)details.push(Number(data.followers).toLocaleString("es-MX")+" seguidores");
